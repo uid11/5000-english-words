@@ -14,5 +14,15 @@
     "repeating"
   ],
   "author": "uid11",
-  "license": "MIT"
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/uid11/5000-english-words.git"
+  },
+  "bugs": {
+    "url": "https://github.com/uid11/5000-english-words/issues"
+  },
+  "homepage": "https://github.com/uid11/5000-english-words#readme",
+  "type": "module"
 }

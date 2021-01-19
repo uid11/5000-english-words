@@ -30,28 +30,43 @@
          border-collapse: collapse;
      }
 
+     #count, #saved, #messages {
+         position: fixed;
+         left: 50px;
+     }
+
+     #count {
+         color: yellow;
+         top: 25px;
+     }
      #count::before {
          content: "Added: ";
      }
-     #count {
-         color: yellow;
 
-         position: fixed;
-         top: 30px;
-         left: 50px;
+     #saved {
+         color: yellow;
+         top: 50px;
      }
+     #saved::before {
+         content: "Saved: ";
+     }
+     #saved.not-all::after {
+         content: " *";
+     }
+
 
      #messages {
          color: #d8d878;
-
-         position: fixed;
-         top: 60px;
-         left: 50px;
+         top: 80px;
+     }
+     #messages .error {
+         color: red;
      }
     </style>
   </head>
   <body>
       <div id="count"></div>
+      <div id="saved"></div>
       <div id="messages"></div>
       <table>
 <tr><td>abandon</td><td>оставить, забросить</td></tr>
@@ -5055,30 +5070,108 @@
 <tr><td>zipper</td><td>молния (застёжка)</td></tr>
 <tr><td>zoo</td><td>зоопарк</td></tr></table>
       <script type="module">
-       const ADDED = 'abuse|employ'
-       const added = new Set()
+       const ADDED = 'abuse|employ|accord|substance|dual|throat|pipe|cue|ensue|ought|oath|starve|grasp|obvious|adjust|distinguish|assume|prevent|sloppy|prone|redundant|tip|rid|ride|riddle|gratify|grave|fortune'
+       const startString = ' const ADDED = \'';
+       let added
        const countElement = document.querySelector('#count')
+       const savedElement = document.querySelector('#saved')
        const messagesElement = document.querySelector('#messages')
-       const getAddedText = () => [...added].join('|')
+       const addedToText = () => [...added].join('|')
+       const textToAdded = text => {
+           const set = new Set()
+
+           text.split('|').forEach(word => word && set.add(word))
+
+           return set
+       }
+       const getDiff = (a, b) => {
+           const diff = new Set()
+
+           a.forEach(word => {
+               if (!b.has(word)) diff.add(word)
+           })
+
+           if (diff.size === 0) {
+               return ''
+           }
+
+           return [...diff].join(', ')
+       }
        const textToClipboard = text => {
            navigator.clipboard.writeText(text)
        }
        const tbodyElement = document.querySelector('TBODY')
 
-       const showMessage = message => {
+       const showMessage = (message, isError) => {
            const messageElement = document.createElement('P')
+
+           if (isError) {
+               messageElement.className = 'error'
+           }
 
            messageElement.textContent = message
 
            messagesElement.append(messageElement)
 
-           setTimeout(() => messageElement.remove(), 10_000)
+           if (!isError) {
+               setTimeout(() => messageElement.remove(), 10_000)
+           }
        }
 
        const elementsByWord = {}
 
-       const updateCount = () => {
+       const getAddedIndexes = text => {
+           const start = startString.length + text.indexOf(startString)
+
+           if (start === startString.length - 1) return [-1, -1]
+
+           return [start, text.indexOf('\'', start)]
+       }
+
+       const checkStaticAdded = staticAddedText => {
+           const staticAdded = textToAdded(staticAddedText)
+           const staticWithoutCurrent = getDiff(staticAdded, added)
+
+           if (staticWithoutCurrent) {
+               showMessage(`Error! Static file contain currently removed words: ${staticWithoutCurrent}`, true)
+
+               return false
+           }
+
+           return true
+       }
+
+       const saveFile = async () => {
+           const [fileHandle] = await showOpenFilePicker()
+           const file = await fileHandle.getFile()
+           const text = await file.text()
+           const [start, end] = getAddedIndexes(text)
+
+           if (start === -1) {
+               showMessage(`Wrong file format: ${file.name}`, true)
+
+               return
+           }
+
+           if (!checkStaticAdded(text.slice(start, end))) return
+
+           const writable = await fileHandle.createWritable();
+
+           showMessage(`Write to file ${file.name}`)
+
+           await writable.write(`${text.slice(0, start)}${addedToText()}${text.slice(end)}`);
+           await writable.close();
+
+           location.reload()
+       }
+
+       const updateCounts = () => {
+           const saved = ADDED.split('|').length
+
            countElement.textContent = added.size
+           savedElement.textContent = saved
+
+           savedElement.className = added.size === saved ? '' : 'not-all'
        }
 
        window.addEventListener('click', ({ target }) => {
@@ -5104,17 +5197,17 @@
                added.delete(word)
            }
 
-           updateCount()
-           localStorage.added = getAddedText()
+           updateCounts()
+           localStorage.added = addedToText()
 
            showMessage(`${add ? 'Add' : 'Remove'} word "${word}"`)
        })
 
        window.addEventListener('keydown', event => {
-           if (event.key === 's' && event.ctrlKey) {
+           if ((event.key === 's' || event.key === 'ы') && event.ctrlKey) {
                event.preventDefault()
-               textToClipboard(getAddedText())
-               showMessage(`${added.size} words copy to clipboard`)
+
+               saveFile()
            }
        })
 
@@ -5123,9 +5216,11 @@
            localStorage.added = ADDED
        }
 
-       localStorage.added.split('|').forEach(word => word && added.add(word))
+       added = textToAdded(localStorage.added)
 
-       updateCount()
+       checkStaticAdded(ADDED)
+
+       updateCounts()
 
        for (let i = 0; i < tbodyElement.children.length; i += 1) {
            const word = tbodyElement.children[i].cells[0].textContent.trim()
