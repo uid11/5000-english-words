@@ -23,7 +23,7 @@
      .added {
          background-color: #215a2d;
      }
-     td:first-child:hover {
+     tr:hover {
          cursor: pointer;
      }
      table {
@@ -42,6 +42,9 @@
      #count::before {
          content: "Added: ";
      }
+     #count.not-all::after {
+         content: " *";
+     }
 
      #saved {
          color: yellow;
@@ -50,10 +53,6 @@
      #saved::before {
          content: "Saved: ";
      }
-     #saved.not-all::after {
-         content: " *";
-     }
-
 
      #messages {
          color: #d8d878;
@@ -5070,7 +5069,7 @@
 <tr><td>zipper</td><td>молния (застёжка)</td></tr>
 <tr><td>zoo</td><td>зоопарк</td></tr></table>
       <script type="module">
-       const ADDED = 'abuse|employ|accord|substance|dual|throat|pipe|cue|ensue|ought|oath|starve|grasp|obvious|adjust|distinguish|assume|prevent|sloppy|prone|redundant|tip|rid|ride|riddle|gratify|grave|fortune|flicker'
+       const ADDED = 'abuse|employ|accord|substance|dual|throat|pipe|cue|ensue|ought|oath|starve|grasp|obvious|adjust|distinguish|assume|prevent|sloppy|prone|redundant|tip|rid|ride|riddle|gratify|grave|fortune|flicker|badge|harness|succeed|benefit|thereafter|thereby|therefore|legislation|legitimate|pan|detect|deliberate'
        const startString = ' const ADDED = \'';
        let added
        const countElement = document.querySelector('#count')
@@ -5171,17 +5170,17 @@
            countElement.textContent = added.size
            savedElement.textContent = saved
 
-           savedElement.className = added.size === saved ? '' : 'not-all'
+           countElement.className = added.size === saved ? '' : 'not-all'
        }
 
        window.addEventListener('click', ({ target }) => {
            const { parentElement } = target
 
-           if (target.tagName !== 'TD' || parentElement.firstChild !== target) {
+           if (target.tagName !== 'TD') {
                return
            }
 
-           const word = target.textContent.trim()
+           const word = target.parentElement.firstElementChild.textContent.trim()
 
            textToClipboard(word)
 
