@@ -29,6 +29,21 @@
      table {
          border-collapse: collapse;
      }
+     .active {
+         position: relative;
+     }
+     .active td:first-child:before {
+         position: absolute;
+         margin-left: -22px;
+         content: "▶";
+         color: yellow;
+     }
+     .active td:last-child:before {
+         position: absolute;
+         margin-left: 301px;
+         content: "◀";
+         color: yellow;
+     }
 
      #count, #saved, #messages {
          position: fixed;
@@ -5069,7 +5084,7 @@
 <tr><td>zipper</td><td>молния (застёжка)</td></tr>
 <tr><td>zoo</td><td>зоопарк</td></tr></table>
       <script type="module">
-       const ADDED = 'abuse|employ|accord|substance|dual|throat|pipe|cue|ensue|ought|oath|starve|grasp|obvious|adjust|distinguish|assume|prevent|sloppy|prone|redundant|tip|rid|ride|riddle|gratify|grave|fortune|flicker|badge|harness|succeed|benefit|thereafter|thereby|therefore|legislation|legitimate|pan|detect|deliberate|absent|prohibit|neat|incidence|dawn|lame|useful|dictionary|knit|fluent|invoke|borrow|dull|anxiety|fairly|instant|estimate|sink|sink (sank, sunk)|surface|bundle|feed (fed, fed)|feed on|via|clumsy|booth|equip|issue|cloth|clothe|custom|glass|law|carbon|verb|rescue|encourage|neglect|meal|suffer|sovereign|turmoil|bowl|bow|tilt|throw (threw, thrown)|throw away|evolve|mess|descend|precise|aid|gradual|hamper|drill|alongside|mere|total|hang (hung, hung)|hang out|hang around|towel|accept|avoid|forecast|presume|absorb|range|essence|chord|suspicious|ingenious|avid|accuse|overflow|suspect|yank|rear|further|proceed|emphasis|increase|access|resume|occur|outline|porcelain|hunk|argue|thumb|lack|awkward|tug|despite|elaborate|rare|snap|snapshot|blind|crook|mandatory|inspire|wander|thorn|nudge|queue|pinch|implicit|agenda|deplete|guilt|relief|vary|investigate|involve|disparity|beat (beat, beaten)|spit (spat, spat)|wage|hoist|meet (met, met)|skill|front|apart|separate|remind|maintain'
+       const ADDED = 'employ|accord|substance|dual|throat|pipe|cue|ensue|ought|oath|starve|grasp|obvious|adjust|distinguish|assume|prevent|sloppy|prone|redundant|tip|rid|ride|riddle|gratify|grave|fortune|flicker|badge|harness|succeed|benefit|thereafter|thereby|therefore|legislation|legitimate|pan|detect|deliberate|absent|prohibit|neat|incidence|dawn|lame|useful|dictionary|knit|fluent|invoke|borrow|dull|anxiety|fairly|instant|estimate|sink|sink (sank, sunk)|surface|bundle|feed (fed, fed)|feed on|via|clumsy|booth|equip|issue|cloth|clothe|custom|glass|law|carbon|verb|rescue|encourage|neglect|meal|suffer|sovereign|turmoil|bowl|bow|tilt|throw (threw, thrown)|throw away|evolve|mess|descend|precise|aid|gradual|hamper|drill|alongside|mere|total|hang (hung, hung)|hang out|hang around|towel|accept|avoid|forecast|presume|absorb|range|essence|chord|suspicious|ingenious|avid|accuse|overflow|suspect|yank|rear|further|proceed|emphasis|increase|access|resume|occur|outline|porcelain|hunk|argue|thumb|lack|awkward|tug|despite|elaborate|rare|snapshot|blind|crook|mandatory|inspire|wander|thorn|nudge|queue|pinch|implicit|agenda|deplete|guilt|relief|vary|investigate|involve|disparity|beat (beat, beaten)|spit (spat, spat)|wage|hoist|meet (met, met)|skill|front|apart|separate|remind|maintain|loose|occasion|intercept|trip|retain|abuse|snap'
        const startString = ' const ADDED = \'';
        let added
        const countElement = document.querySelector('#count')
@@ -5100,6 +5115,42 @@
            navigator.clipboard.writeText(text)
        }
        const tbodyElement = document.querySelector('TBODY')
+       const wordsCount = tbodyElement.children.length
+
+       const throttle = (fn, delayInMs) => {
+           let isPlanned = false
+           const wrappedFn = () => {
+               isPlanned = false
+               fn()
+           }
+
+           return () => {
+               if (isPlanned) return
+
+               isPlanned = true
+
+               setTimeout(wrappedFn, delayInMs)
+           }
+       }
+
+       const { clientHeight } = document.body
+       const getTrRange = () => [
+           Math.floor((scrollY * wordsCount) / clientHeight),
+           Math.floor(((scrollY + innerHeight) * wordsCount) / clientHeight),
+       ]
+       let activeTr = 0
+       const setActiveTr = newActiveTr => {
+           tbodyElement.children[activeTr].classList.remove('active')
+           tbodyElement.children[newActiveTr].classList.add('active')
+           activeTr = newActiveTr
+       }
+       const onScroll = throttle(() => {
+           const [min, max] = getTrRange()
+
+           if (min <= activeTr && activeTr <= max) return
+
+           setActiveTr(Math.round((min + max) / 2))
+       })
 
        const showMessage = (message, isError) => {
            const messageElement = document.createElement('P')
@@ -5173,21 +5224,19 @@
            countElement.className = added.size === saved ? '' : 'not-all'
        }
 
-       window.addEventListener('mousedown', ({ target }) => {
-           const { parentElement } = target
-
-           if (target.tagName !== 'TD') {
-               return
-           }
-
-           const word = target.parentElement.firstElementChild.textContent.trim()
+       const clickOnTr = trElement => {
+           const word = trElement.firstElementChild.textContent.trim()
 
            textToClipboard(word)
 
            const add = !added.has(word)
 
            elementsByWord[word].forEach(trElement => {
-               trElement.className = add ? 'added' : ''
+               if (add) {
+                   trElement.classList.add('added')
+               } else {
+                   trElement.classList.remove('added')
+               }
            })
 
            if (add) {
@@ -5200,6 +5249,10 @@
            localStorage.added = addedToText()
 
            showMessage(`${add ? 'Add' : 'Remove'} word "${word}"`)
+       }
+
+       window.addEventListener('mousedown', ({ target }) => {
+           if (target.tagName === 'TD') clickOnTr(target.parentElement)
        })
 
        window.addEventListener('keydown', event => {
@@ -5207,6 +5260,14 @@
                event.preventDefault()
 
                saveFile()
+           }
+
+           if (event.key === 'ArrowUp' && activeTr > 0) setActiveTr(activeTr - 1)
+           if (event.key === 'ArrowDown' && activeTr < wordsCount - 1) setActiveTr(activeTr + 1)
+
+           if (event.key === ' ') {
+               event.preventDefault()
+               clickOnTr(tbodyElement.children[activeTr])
            }
        })
 
@@ -5231,6 +5292,10 @@
            elementsByWord[word] ??= []
            elementsByWord[word].push(tbodyElement.children[i])
        }
+
+       onScroll()
+
+       window.addEventListener('scroll', onScroll)
 
       </script>
   </body>
